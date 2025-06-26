@@ -8,6 +8,7 @@ const userRoutes = require('./user');
 const followRoutes = require('./follow');
 const companyRoutes = require('./company');
 const agentRoutes = require('./agent');
+const knowledgeRoutes = require('./knowledge');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -15,6 +16,7 @@ router.use('/user', userRoutes);
 router.use('/follow', followRoutes);
 router.use('/company', companyRoutes);
 router.use('/agent', agentRoutes);
+router.use('/company', knowledgeRoutes);
 
 // Health check route
 router.get('/health', (req, res) => {

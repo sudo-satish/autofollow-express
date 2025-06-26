@@ -18,6 +18,9 @@ import ClientForm from './dashboard/clients/form.jsx';
 import Followups from './dashboard/followups/index.jsx';
 import FollowupForm from './dashboard/followups/form.jsx';
 import FollowupView from './dashboard/followups/view.jsx';
+import Knowledge from './dashboard/knowledge/index.jsx';
+import KnowledgeForm from './dashboard/knowledge/form.jsx';
+import KnowledgeView from './dashboard/knowledge/view.jsx';
 
 const router = createBrowserRouter([
   {
@@ -98,6 +101,27 @@ const router = createBrowserRouter([
           {
             path: '/dashboard/followups/:id/edit',
             Component: FollowupForm,
+          },
+        ],
+      },
+      {
+        path: '/dashboard/knowledge',
+        children: [
+          {
+            index: true,
+            Component: Knowledge,
+          },
+          {
+            path: '/dashboard/knowledge/new',
+            Component: KnowledgeForm,
+          },
+          {
+            path: '/dashboard/knowledge/:id',
+            Component: KnowledgeView,
+          },
+          {
+            path: '/dashboard/knowledge/:id/edit',
+            Component: KnowledgeForm,
           },
         ],
       },

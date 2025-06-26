@@ -11,6 +11,7 @@ const ChatMessage = require('../models/chat');
 const Agent = require('../models/agent');
 const FollowupMessage = require('../models/followupMessage');
 const { publish } = require('../redis');
+const Knowledge = require('../models/knowledge');
 
 router.post('/create', async (req, res) => {
     const { name, location } = req.body;
@@ -761,4 +762,22 @@ router.post('/:companyId/followups/:followupId/restart-conversation', requireAut
         });
     }
 });
+
+router.get('/:companyId/knowledge', requireAuth(), async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const knowledge = await Knowledge.find({ companyId }).sort({ createdAt: -1 });
+        res.status(200).json(successResponse({
+            message: 'Knowledge fetched successfully',
+            data: knowledge
+        }));
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch knowledge',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

@@ -40,8 +40,8 @@ const humanAssistanceNeeded = tool(async (input) => {
         throw new Error('Followup not found');
     }
 
-    followup.isAutoMode = false;
-    await followup.save();
+    // followup.isAutoMode = false;
+    // await followup.save();
 
     return {
         success: true,
@@ -70,8 +70,24 @@ const giggerAttendanceConfirmation = tool(async ({ gigger_id, booking_id, gigger
         throw new Error('Followup not found');
     }
 
-    followup.isAutoMode = false;
-    await followup.save();
+    // Lets call a webhook to the gigger api
+    // [PATCH] {{JOBS-URL}}/api/mobile/gigs/bookings/:bookingId/webhook
+
+    const giggerWebhookUrl = `http://localhost:5004/api/mobile/gigs/bookings/${booking_id}/webhook`;
+    await fetch(giggerWebhookUrl, {
+        method: 'POST',
+        headers: {
+            'User-Agent': 'undici-stream-example',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            gigger_will_check_in,
+            reason,
+        }),
+    });
+
+    // followup.isAutoMode = false;
+    // await followup.save();
 
     return {
         success: true,

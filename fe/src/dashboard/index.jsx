@@ -19,6 +19,7 @@ import {
   X,
   Loader2,
   QrCode,
+  BookOpen,
 } from 'lucide-react';
 import { SignedIn, UserButton } from '@clerk/clerk-react';
 
@@ -177,6 +178,11 @@ export default function Dashboard() {
       name: 'Followups',
       icon: MessageSquare,
       path: '/dashboard/followups',
+    },
+    {
+      name: 'Knowledge',
+      icon: BookOpen,
+      path: '/dashboard/knowledge',
     },
   ];
 
