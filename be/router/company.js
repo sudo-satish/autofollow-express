@@ -8,6 +8,9 @@ const { successResponse } = require('../utils/response');
 const Client = require('../models/client');
 const Followup = require('../models/followup');
 const ChatMessage = require('../models/chat');
+const Agent = require('../models/agent');
+const FollowupMessage = require('../models/followupMessage');
+const { publish } = require('../redis');
 
 router.post('/create', async (req, res) => {
     const { name, location } = req.body;
@@ -350,7 +353,7 @@ router.put('/:companyId', requireAuth(), async (req, res) => {
 });
 
 // Create a new followup for a company
-router.post('/:companyId/followups', async (req, res) => {
+router.post('/:companyId/followups', requireAuth(), async (req, res) => {
     try {
         const { companyId } = req.params;
         const { clientId, followupDateTime, isAutoMode, context, agentId, status } = req.body;
@@ -375,12 +378,39 @@ router.post('/:companyId/followups', async (req, res) => {
         // Create followup
         const followup = await Followup.create({
             clientId,
+            companyId,
             followupDateTime,
             isAutoMode,
             context,
-            companyId,
             agentId: agentId,
             status: status || 'pending'
+        });
+
+        const agent = await Agent.findById(agentId);
+        if (!agent) {
+            return res.status(404).json({
+                success: false,
+                message: 'Agent not found'
+            });
+        }
+
+        await FollowupMessage.create({
+            followupId: followup._id,
+            clientId: clientId,
+            role: 'system',
+            content: `${agent.systemPrompt.replace('{context}', context)}
+
+            ===
+            Metadata: 
+            ===
+            Followup ID: ${followup._id}
+            Client ID: ${clientId}
+            Company ID: ${companyId}
+            Agent ID: ${agentId}
+            Followup Date: ${followupDateTime}
+            Followup Status: ${status}
+            ===
+            `,
         });
 
         res.status(201).json(successResponse({
@@ -396,7 +426,7 @@ router.post('/:companyId/followups', async (req, res) => {
     }
 });
 
-router.get('/:companyId/followups', async (req, res) => {
+router.get('/:companyId/followups', requireAuth(), async (req, res) => {
     try {
         const { companyId } = req.params;
         const followups = await Followup.find({ companyId }).populate('clientId agentId companyId');
@@ -414,7 +444,7 @@ router.get('/:companyId/followups', async (req, res) => {
 });
 
 // Get a single followup by ID
-router.get('/:companyId/followups/:followupId', async (req, res) => {
+router.get('/:companyId/followups/:followupId', requireAuth(), async (req, res) => {
     try {
         const { companyId, followupId } = req.params;
 
@@ -450,7 +480,7 @@ router.get('/:companyId/followups/:followupId', async (req, res) => {
     }
 });
 
-router.put('/:companyId/followups/:followupId', async (req, res) => {
+router.put('/:companyId/followups/:followupId', requireAuth(), async (req, res) => {
     try {
         const { companyId, followupId } = req.params;
         const { clientId, followupDateTime, isAutoMode, context, agentId } = req.body;
@@ -468,7 +498,7 @@ router.put('/:companyId/followups/:followupId', async (req, res) => {
     }
 });
 
-router.delete('/:companyId/followups/:followupId', async (req, res) => {
+router.delete('/:companyId/followups/:followupId', requireAuth(), async (req, res) => {
     try {
         const { companyId, followupId } = req.params;
         await Followup.findByIdAndDelete(followupId);
@@ -485,7 +515,7 @@ router.delete('/:companyId/followups/:followupId', async (req, res) => {
 });
 
 // Get chat messages for a followup
-router.get('/:companyId/followups/:followupId/messages', async (req, res) => {
+router.get('/:companyId/followups/:followupId/messages', requireAuth(), async (req, res) => {
     try {
         const { companyId, followupId } = req.params;
 
@@ -507,9 +537,9 @@ router.get('/:companyId/followups/:followupId/messages', async (req, res) => {
             });
         }
 
-        const messages = await ChatMessage.find({ followupId })
-            .populate('senderId')
-            .sort({ timestamp: 1 });
+        const messages = await FollowupMessage.find({ followupId, role: { $in: ['assistant', 'user'] } })
+            .populate('clientId')
+            .sort({ createdAt: 1 });
 
         res.status(200).json(successResponse({
             message: 'Chat messages fetched successfully',
@@ -525,7 +555,7 @@ router.get('/:companyId/followups/:followupId/messages', async (req, res) => {
 });
 
 // Send a new chat message
-router.post('/:companyId/followups/:followupId/messages', async (req, res) => {
+router.post('/:companyId/followups/:followupId/messages', requireAuth(), async (req, res) => {
     try {
         const { companyId, followupId } = req.params;
         const { sender, senderId, senderModel, message } = req.body;
@@ -582,7 +612,7 @@ router.post('/:companyId/followups/:followupId/messages', async (req, res) => {
 });
 
 // Mark messages as read
-router.put('/:companyId/followups/:followupId/messages/read', async (req, res) => {
+router.put('/:companyId/followups/:followupId/messages/read', requireAuth(), async (req, res) => {
     try {
         const { companyId, followupId } = req.params;
         const { messageIds } = req.body;
@@ -614,4 +644,121 @@ router.put('/:companyId/followups/:followupId/messages/read', async (req, res) =
     }
 });
 
+// Start conversation for a followup
+router.post('/:companyId/followups/:followupId/start-conversation', requireAuth(), async (req, res) => {
+    try {
+        const { followupId } = req.params;
+        const followup = await Followup.findById(followupId);
+        if (!followup) {
+            return res.status(404).json({
+                success: false,
+                message: 'Followup not found'
+            });
+        }
+
+        if (followup.status === 'in_progress') {
+            return res.status(400).json({
+                success: false,
+                message: 'Followup is already in progress'
+            });
+        }
+
+        followup.status = 'in_progress';
+        await followup.save();
+
+        const client = await Client.findById(followup.clientId);
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        const initialMessage = `Hello ${client.name}, How are you today?`;
+
+        publish(
+            'whatsapp.send-message',
+            JSON.stringify({
+                companyId: client.companyId,
+                message: initialMessage,
+                to: `${client.countryCode.replace('+', '')}${client.phone}@c.us`,
+            })
+        );
+
+        await FollowupMessage.create({
+            followupId: followup._id,
+            clientId: client._id,
+            role: 'assistant',
+            content: initialMessage,
+        });
+
+        res.status(200).json(successResponse({
+            message: 'Followup started successfully',
+            data: followup
+        }));
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to start followup',
+            error: error.message
+        });
+    }
+});
+
+router.post('/:companyId/followups/:followupId/restart-conversation', requireAuth(), async (req, res) => {
+    try {
+        const { followupId } = req.params;
+        const followup = await Followup.findById(followupId);
+        if (!followup) {
+            return res.status(404).json({
+                success: false,
+                message: 'Followup not found'
+            });
+        }
+
+        const client = await Client.findById(followup.clientId);
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        followup.status = 'in_progress';
+        await followup.save();
+
+        await FollowupMessage.deleteMany({
+            followupId: followup._id,
+            role: { $in: ['assistant', 'user'] }
+        });
+
+        const initialMessage = `Hello ${client.name}, How are you today?`;
+        await FollowupMessage.create({
+            followupId: followup._id,
+            clientId: followup.clientId,
+            role: 'assistant',
+            content: initialMessage,
+        });
+
+        publish(
+            'whatsapp.send-message',
+            JSON.stringify({
+                companyId: followup.companyId,
+                message: initialMessage,
+                to: `${client.countryCode.replace('+', '')}${client.phone}@c.us`,
+            })
+        );
+
+        res.status(200).json(successResponse({
+            message: 'Followup restarted successfully',
+            data: followup
+        }));
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to restart followup',
+            error: error.message
+        });
+    }
+});
 module.exports = router;

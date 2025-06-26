@@ -11,44 +11,22 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  X,
 } from 'lucide-react';
 import { Link } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@clerk/clerk-react';
+import useCompany from '../hooks/useCompany';
+import { API_URL } from '../config';
 
 export default function DashboardOverview() {
-  const stats = [
-    {
-      title: 'Total Clients',
-      value: '1,234',
-      change: '+12%',
-      changeType: 'positive',
-      icon: Users,
-      color: 'bg-blue-500',
-    },
-    {
-      title: 'Active Followups',
-      value: '456',
-      change: '+15%',
-      changeType: 'positive',
-      icon: MessageSquare,
-      color: 'bg-green-500',
-    },
-    {
-      title: 'Auto Mode Followups',
-      value: '89',
-      change: '+23%',
-      changeType: 'positive',
-      icon: Activity,
-      color: 'bg-purple-500',
-    },
-    {
-      title: 'Pending Followups',
-      value: '67',
-      change: '-5%',
-      changeType: 'negative',
-      icon: Clock,
-      color: 'bg-orange-500',
-    },
-  ];
+  const { getToken } = useAuth();
+  const { company } = useCompany();
+  const [recentFollowups, setRecentFollowups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showContextPopup, setShowContextPopup] = useState(false);
+  const [selectedFollowup, setSelectedFollowup] = useState(null);
 
   const quickActions = [
     {
@@ -81,32 +59,133 @@ export default function DashboardOverview() {
     },
   ];
 
-  const recentFollowups = [
-    {
-      id: 1,
-      clientName: 'John Smith',
-      context: 'Product demo scheduled',
-      status: 'pending',
-      date: '2 hours ago',
-      isAutoMode: true,
-    },
-    {
-      id: 2,
-      clientName: 'Sarah Johnson',
-      context: 'Follow up on proposal',
-      status: 'completed',
-      date: '4 hours ago',
-      isAutoMode: false,
-    },
-    {
-      id: 3,
-      clientName: 'Mike Wilson',
-      context: 'Contract discussion',
-      status: 'in_progress',
-      date: '6 hours ago',
-      isAutoMode: true,
-    },
-  ];
+  // Fetch recent followups
+  useEffect(() => {
+    const fetchRecentFollowups = async () => {
+      if (!company?._id) return;
+
+      try {
+        setLoading(true);
+        const token = await getToken();
+        const response = await fetch(
+          `${API_URL}/company/${company._id}/followups`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch followups');
+        }
+
+        const data = await response.json();
+        // Get the 5 most recent followups
+        const recent = data.data
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 5);
+        setRecentFollowups(recent);
+      } catch (err) {
+        setError(err.message);
+        console.error('Error fetching recent followups:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecentFollowups();
+  }, [company?._id, getToken]);
+
+  // Calculate stats based on followups data
+  const calculateStats = () => {
+    if (!recentFollowups.length) {
+      return [
+        {
+          title: 'Total Clients',
+          value: '0',
+          change: '+0%',
+          changeType: 'positive',
+          icon: Users,
+          color: 'bg-blue-500',
+        },
+        {
+          title: 'Active Followups',
+          value: '0',
+          change: '+0%',
+          changeType: 'positive',
+          icon: MessageSquare,
+          color: 'bg-green-500',
+        },
+        {
+          title: 'Auto Mode Followups',
+          value: '0',
+          change: '+0%',
+          changeType: 'positive',
+          icon: Activity,
+          color: 'bg-purple-500',
+        },
+        {
+          title: 'Pending Followups',
+          value: '0',
+          change: '+0%',
+          changeType: 'positive',
+          icon: Clock,
+          color: 'bg-orange-500',
+        },
+      ];
+    }
+
+    // Get all followups for stats calculation
+    const allFollowups = recentFollowups; // In a real app, you'd fetch all followups for stats
+
+    const totalClients = new Set(allFollowups.map((f) => f.clientId?._id)).size;
+    const activeFollowups = allFollowups.filter(
+      (f) => f.status === 'in_progress'
+    ).length;
+    const autoModeFollowups = allFollowups.filter((f) => f.isAutoMode).length;
+    const pendingFollowups = allFollowups.filter(
+      (f) => f.status === 'pending'
+    ).length;
+
+    return [
+      {
+        title: 'Total Clients',
+        value: totalClients.toString(),
+        change: '+12%',
+        changeType: 'positive',
+        icon: Users,
+        color: 'bg-blue-500',
+      },
+      {
+        title: 'Active Followups',
+        value: activeFollowups.toString(),
+        change: '+15%',
+        changeType: 'positive',
+        icon: MessageSquare,
+        color: 'bg-green-500',
+      },
+      {
+        title: 'Auto Mode Followups',
+        value: autoModeFollowups.toString(),
+        change: '+23%',
+        changeType: 'positive',
+        icon: Activity,
+        color: 'bg-purple-500',
+      },
+      {
+        title: 'Pending Followups',
+        value: pendingFollowups.toString(),
+        change: '-5%',
+        changeType: 'negative',
+        icon: Clock,
+        color: 'bg-orange-500',
+      },
+    ];
+  };
+
+  const stats = calculateStats();
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -132,6 +211,26 @@ export default function DashboardOverview() {
       default:
         return Clock;
     }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+
+    if (diffInHours < 1) {
+      return 'Just now';
+    } else if (diffInHours < 24) {
+      return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    }
+  };
+
+  const handleShowContext = (followup) => {
+    setSelectedFollowup(followup);
+    setShowContextPopup(true);
   };
 
   return (
@@ -240,47 +339,114 @@ export default function DashboardOverview() {
             View all
           </Link>
         </div>
-        <div className='space-y-4'>
-          {recentFollowups.map((followup) => {
-            const StatusIcon = getStatusIcon(followup.status);
-            return (
-              <div
-                key={followup.id}
-                className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'
-              >
-                <StatusIcon
-                  size={16}
-                  className={getStatusColor(followup.status).replace(
-                    'bg-',
-                    'text-'
-                  )}
-                />
-                <div className='flex-1'>
-                  <div className='flex items-center space-x-2'>
-                    <p className='text-sm font-medium text-gray-900'>
-                      {followup.clientName}
-                    </p>
-                    {followup.isAutoMode && (
-                      <span className='px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full'>
-                        Auto
-                      </span>
-                    )}
-                  </div>
-                  <p className='text-sm text-gray-600'>{followup.context}</p>
-                  <p className='text-xs text-gray-500'>{followup.date}</p>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
-                    followup.status
-                  )}`}
+
+        {loading ? (
+          <div className='flex items-center justify-center py-8'>
+            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+            <span className='ml-2 text-gray-600'>Loading followups...</span>
+          </div>
+        ) : error ? (
+          <div className='flex items-center justify-center py-8 text-red-600'>
+            <AlertCircle size={20} className='mr-2' />
+            <span>Error loading followups: {error}</span>
+          </div>
+        ) : recentFollowups.length === 0 ? (
+          <div className='flex items-center justify-center py-8 text-gray-500'>
+            <MessageSquare size={20} className='mr-2' />
+            <span>No followups found</span>
+          </div>
+        ) : (
+          <div className='space-y-4'>
+            {recentFollowups.map((followup) => {
+              const StatusIcon = getStatusIcon(followup.status);
+              return (
+                <div
+                  key={followup._id}
+                  className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'
                 >
-                  {followup.status.replace('_', ' ')}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                  <StatusIcon
+                    size={16}
+                    className={getStatusColor(followup.status).replace(
+                      'bg-',
+                      'text-'
+                    )}
+                  />
+                  <div className='flex-1'>
+                    <div className='flex items-center space-x-2'>
+                      <p className='text-sm font-medium text-gray-900'>
+                        {followup.clientId?.name || 'Unknown Client'}
+                      </p>
+                      {followup.isAutoMode && (
+                        <span className='px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full'>
+                          Auto
+                        </span>
+                      )}
+                    </div>
+                    <div className='flex items-center space-x-2 mt-1'>
+                      <p className='text-xs text-gray-500'>
+                        {formatDate(followup.createdAt)}
+                      </p>
+                      <button
+                        onClick={() => handleShowContext(followup)}
+                        className='text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors'
+                      >
+                        View Context
+                      </button>
+                    </div>
+                  </div>
+                  <div className='flex items-center space-x-2'>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${getStatusColor(
+                        followup.status
+                      )}`}
+                    >
+                      {followup.status.replace('_', ' ')}
+                    </span>
+                    <Link
+                      to={`/dashboard/followups/${followup._id}`}
+                      className='text-xs text-green-600 hover:text-green-700 font-medium hover:underline transition-colors'
+                    >
+                      View Followup
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Context Popup */}
+      {showContextPopup && selectedFollowup && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto'>
+            <div className='flex items-center justify-between mb-4'>
+              <h3 className='text-lg font-semibold text-gray-900'>
+                Followup Context
+              </h3>
+              <button
+                onClick={() => setShowContextPopup(false)}
+                className='text-gray-400 hover:text-gray-600'
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className='bg-gray-50 rounded-lg p-4'>
+              <p className='text-gray-700 leading-relaxed whitespace-pre-wrap'>
+                {selectedFollowup.context}
+              </p>
+            </div>
+            <div className='mt-4 flex justify-end'>
+              <button
+                onClick={() => setShowContextPopup(false)}
+                className='px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors'
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

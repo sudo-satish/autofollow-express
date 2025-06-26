@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const location = useLocation();
 
-  const { company, setCompany } = useCompany();
+  const { company, setCompany, refetchCompany } = useCompany();
 
   const socket = useMemo(() => {
     return io(import.meta.env.VITE_API_URL);
@@ -70,13 +70,16 @@ export default function Dashboard() {
       if (data.status === 'connected') {
         setQrCode(null);
         setError(null);
-        // Update company data to reflect WhatsApp is now enabled
-        if (company) {
-          setCompany({ ...company, isWhatsappEnabled: true });
-        }
+        // Refetch company data to get the latest isWhatsappEnabled status
+        refetchCompany();
         setTimeout(() => {
           setShowWhatsAppModal(false);
         }, 2000);
+      } else if (data.status === 'disconnected') {
+        setQrCode(null);
+        setError(null);
+        // Refetch company data to get the latest isWhatsappEnabled status
+        refetchCompany();
       }
     });
 
@@ -98,7 +101,7 @@ export default function Dashboard() {
       socket.off('whatsapp:error');
       socket.disconnect();
     };
-  }, [socket]);
+  }, [socket, refetchCompany]);
 
   // Check current WhatsApp status when company data is available
   useEffect(() => {
@@ -126,6 +129,11 @@ export default function Dashboard() {
 
     // Emit disconnect event to backend
     socket.emit('whatsapp:disconnect', { companyId: company?._id });
+
+    // Refetch company data to get the latest isWhatsappEnabled status
+    setTimeout(() => {
+      refetchCompany();
+    }, 1000); // Small delay to ensure backend has processed the disconnect
   };
 
   const getStatusText = () => {
@@ -193,7 +201,9 @@ export default function Dashboard() {
         <div className='flex items-center justify-between p-4 border-b border-gray-200'>
           {!sidebarCollapsed && (
             <div className='flex items-center space-x-2'>
-              <h1 className='text-xl font-bold text-gray-800'>Dashboard</h1>
+              <h1 className='text-xl font-bold text-gray-800'>
+                {company?.name}
+              </h1>
               {/* WhatsApp Connection Indicator */}
               <div className='flex items-center space-x-1'>
                 <div

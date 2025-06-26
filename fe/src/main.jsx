@@ -4,6 +4,7 @@ import './index.css';
 import App from './App.jsx';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { createBrowserRouter, RouterProvider } from 'react-router';
+import { Toaster } from 'react-hot-toast';
 import Admin from './admin/index.jsx';
 import Dashboard from './dashboard/index.jsx';
 import DashboardOverview from './dashboard/overview.jsx';
@@ -115,6 +116,30 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl='/'>
       <RouterProvider router={router} />
+      <Toaster
+        position='top-right'
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </ClerkProvider>
   </StrictMode>
 );

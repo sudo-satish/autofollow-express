@@ -7,12 +7,6 @@ const useCompany = () => {
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (orgId) {
-      fetchCompany(orgId);
-    }
-  }, [orgId]);
-
   const fetchCompany = async (orgId) => {
     const token = await getToken();
     const response = await fetch(`${API_URL}/company/org/${orgId}`, {
@@ -26,7 +20,20 @@ const useCompany = () => {
     setLoading(false);
   };
 
-  return { company, setCompany, loading };
+  useEffect(() => {
+    if (orgId) {
+      fetchCompany(orgId);
+    }
+  }, [orgId]);
+
+  // Function to refetch company data
+  const refetchCompany = async () => {
+    if (orgId) {
+      await fetchCompany(orgId);
+    }
+  };
+
+  return { company, setCompany, loading, refetchCompany };
 };
 
 export default useCompany;

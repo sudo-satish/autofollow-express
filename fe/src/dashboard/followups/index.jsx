@@ -30,8 +30,6 @@ export default function Followups() {
 
   const { company, setCompany, loading } = useCompany();
 
-  console.log(user, orgId, company);
-
   useEffect(() => {
     const fetchFollowups = async () => {
       console.log({ company });

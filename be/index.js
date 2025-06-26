@@ -30,6 +30,7 @@ app.use(clerkMiddleware());
 // Import and use router
 const router = require('./router');
 const MessageLog = require('./models/messageLog');
+const { onWhatsappMessage } = require('./services/whatsapp');
 
 redis.connect().then(() => {
     console.log('Connected to Redis');
@@ -41,17 +42,24 @@ app.use('/api', router);
 // WhatsApp connection states
 const whatsappConnections = new Map();
 
-redis.subscribe('whatsapp.message_create', async (message) => {
+
+redis.subscribe('whatsapp:message_create', async (messageId) => {
     try {
-        if (message) {
-            console.log('whatsapp-message-created', message);
-            const messageData = JSON.parse(message);
+        if (messageId) {
+            console.log('whatsapp-message-created', messageId);
+            const msgLog = await MessageLog.findById(messageId);
+            if (!msgLog) {
+                return;
+            }
+            const message = msgLog.toObject().message;
+            const { type, body, fromMe } = message;
+            if (msgLog?.message) {
+                if (type !== 'chat' || !body || fromMe) {
+                    return;
+                }
+                await onWhatsappMessage(msgLog, io);
+            }
 
-            await MessageLog.create({ message: messageData });
-            // const messageDoc = await Message.create({ message: messageData });
-            // socket.emit('whatsapp-message-created', messageDoc.toObject());
-
-            // await onWhatsappMessage(messageData);
         }
     } catch (error) {
         console.error('whatsapp-message-created', error);

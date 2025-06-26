@@ -1,0 +1,108 @@
+const { TavilySearch } = require("@langchain/tavily");
+const { tool } = require("@langchain/core/tools");
+const { z } = require("zod");
+const Followup = require("../models/followup");
+
+
+const getWeather = tool((input) => {
+    if (["sf", "san francisco"].includes(input.location.toLowerCase())) {
+        return "It's 60 degrees and foggy.";
+    } else {
+        return "It's 90 degrees and sunny.";
+    }
+}, {
+    name: "get_weather",
+    description: "Call to get the current weather.",
+    schema: z.object({
+        location: z.string().describe("Location to get the weather for."),
+    }),
+});
+
+const multiply = tool((input) => {
+    return input.a * input.b;
+}, {
+    name: "multiply",
+    description: "Call to multiply two numbers.",
+    schema: z.object({
+        a: z.number().describe("First number to multiply."),
+        b: z.number().describe("Second number to multiply."),
+    }),
+});
+
+const humanAssistanceNeeded = tool(async (input) => {
+    console.log({
+        name: 'Human Assistance',
+        reason: input.reason,
+    });
+
+    const followup = await Followup.findById(input.followup_id);
+    if (!followup) {
+        throw new Error('Followup not found');
+    }
+
+    followup.isAutoMode = false;
+    await followup.save();
+
+    return {
+        success: true,
+        message: 'Human assistance requested',
+    };
+}, {
+    name: "human_assistance_needed",
+    description: 'Request human assistance.',
+    schema: z.object({
+        reason: z.string(),
+        followup_id: z.string(),
+    }),
+});
+
+const giggerAttendanceConfirmation = tool(async ({ gigger_id, booking_id, gigger_will_check_in, followup_id, reason }) => {
+    console.log({
+        followup_id,
+        gigger_id,
+        booking_id,
+        gigger_will_check_in,
+        reason,
+    });
+
+    const followup = await Followup.findById(followup_id);
+    if (!followup) {
+        throw new Error('Followup not found');
+    }
+
+    followup.isAutoMode = false;
+    await followup.save();
+
+    return {
+        success: true,
+        message: 'Attendance confirmed',
+    };
+}, {
+    name: "gigger_attendance_confirmation",
+    description: 'Confirm attendance for a given shift in the DB.',
+    schema: z.object({
+        gigger_id: z.string(),
+        booking_id: z.string(),
+        followup_id: z.string(),
+        gigger_will_check_in: z.string(),
+        reason: z.string(),
+    }),
+});
+
+const tools = [
+    giggerAttendanceConfirmation,
+    humanAssistanceNeeded,
+    multiply,
+    getWeather,
+    new TavilySearch(
+        {
+            maxResults: 5,
+            topic: 'general',
+        }
+    ),
+];
+
+
+module.exports = {
+    tools
+}

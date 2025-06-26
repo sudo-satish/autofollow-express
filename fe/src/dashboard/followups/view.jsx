@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
+import toast from 'react-hot-toast';
 import {
   ArrowLeft,
   Edit,
@@ -28,10 +29,13 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Play,
 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import useCompany from '../../hooks/useCompany';
 import { API_URL } from '../../config';
+import moment from 'moment';
+import { io } from 'socket.io-client';
 
 const FollowupView = () => {
   const { id } = useParams();
@@ -46,6 +50,42 @@ const FollowupView = () => {
   const [showContextPopup, setShowContextPopup] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
+  const [startingConversation, setStartingConversation] = useState(false);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    const chatContainer = document.querySelector('.chat-messages-container');
+    if (chatContainer) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // WebSocket connection for real-time messages
+  useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL);
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket server');
+    });
+
+    socket.on('whatsapp-message', (data) => {
+      console.log('Received whatsapp-message:', data);
+      // Only add the message if it belongs to the current followup
+      if (data.followupId === id) {
+        setChatMessages((prevMessages) => [...prevMessages, data.message]);
+        toast.success(`New ${data.type} message received`);
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
+    });
+
+    return () => {
+      socket.off('whatsapp-message');
+      socket.disconnect();
+    };
+  }, [id]);
 
   useEffect(() => {
     const fetchFollowup = async () => {
@@ -113,11 +153,13 @@ const FollowupView = () => {
       );
 
       if (response.ok) {
+        toast.success('Followup deleted successfully');
         navigate('/dashboard/followups');
       } else {
         throw new Error('Failed to delete followup');
       }
     } catch (err) {
+      toast.error(err.message || 'Failed to delete followup');
       setError(err.message);
     }
   };
@@ -150,12 +192,139 @@ const FollowupView = () => {
         const data = await response.json();
         setChatMessages([...chatMessages, data.data]);
         setNewMessage('');
+        toast.success('Message sent successfully');
       } else {
         throw new Error('Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // You could add a toast notification here
+      toast.error('Failed to send message. Please try again.');
+    }
+  };
+
+  const handleStartConversation = async () => {
+    if (!followup) return;
+
+    try {
+      setStartingConversation(true);
+      const token = await getToken();
+
+      const response = await fetch(
+        `${API_URL}/company/${company._id}/followups/${id}/start-conversation`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        toast.success('Conversation started successfully');
+        // Refresh the followup data to get updated status
+        const updatedResponse = await fetch(
+          `${API_URL}/company/${company._id}/followups/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (updatedResponse.ok) {
+          const data = await updatedResponse.json();
+          setFollowup(data.data);
+        }
+
+        // Refresh chat messages
+        const messagesResponse = await fetch(
+          `${API_URL}/company/${company._id}/followups/${id}/messages`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          setChatMessages(messagesData.data || []);
+        }
+      } else {
+        throw new Error('Failed to start conversation');
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      toast.error('Failed to start conversation. Please try again.');
+      setError('Failed to start conversation. Please try again.');
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
+  const handleRestartConversation = async () => {
+    if (!followup) return;
+
+    try {
+      setStartingConversation(true);
+      const token = await getToken();
+
+      const response = await fetch(
+        `${API_URL}/company/${company._id}/followups/${id}/restart-conversation`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        toast.success('Conversation restarted successfully');
+        // Refresh the followup data to get updated status
+        const updatedResponse = await fetch(
+          `${API_URL}/company/${company._id}/followups/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (updatedResponse.ok) {
+          const data = await updatedResponse.json();
+          setFollowup(data.data);
+        }
+
+        // Refresh chat messages
+        const messagesResponse = await fetch(
+          `${API_URL}/company/${company._id}/followups/${id}/messages`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          setChatMessages(messagesData.data || []);
+        }
+      } else {
+        throw new Error('Failed to restart conversation');
+      }
+    } catch (error) {
+      console.error('Error restarting conversation:', error);
+      toast.error('Failed to restart conversation. Please try again.');
+      setError('Failed to restart conversation. Please try again.');
+    } finally {
+      setStartingConversation(false);
     }
   };
 
@@ -216,10 +385,7 @@ const FollowupView = () => {
   };
 
   const formatChatTime = (date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return moment(date).format('DD/MM/YYYY HH:mma');
   };
 
   if (loading) {
@@ -298,6 +464,26 @@ const FollowupView = () => {
           </div>
         </div>
         <div className='flex items-center space-x-3'>
+          <button
+            onClick={
+              followup?.status === 'pending'
+                ? handleStartConversation
+                : followup?.status === 'in_progress'
+                ? handleRestartConversation
+                : null
+            }
+            disabled={startingConversation || followup?.status === 'completed'}
+            className='inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed'
+          >
+            <Play size={16} className='mr-2' />
+            {startingConversation
+              ? 'Starting...'
+              : followup?.status === 'pending'
+              ? 'Start conversation now'
+              : followup?.status === 'in_progress'
+              ? 'Restart conversation'
+              : 'Start conversation now'}
+          </button>
           <Link
             to={`/dashboard/followups/edit/${id}`}
             className='inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'
@@ -420,31 +606,36 @@ const FollowupView = () => {
             </div>
 
             {/* Chat Messages */}
-            <div className='h-96 overflow-y-auto p-4 space-y-4'>
+            <div className='h-96 overflow-y-auto p-4 space-y-4 chat-messages-container'>
               {chatMessages.map((message) => (
                 <div
                   key={message._id}
                   className={`flex ${
-                    message.sender === 'agent' ? 'justify-end' : 'justify-start'
+                    message.role === 'assistant'
+                      ? 'justify-end'
+                      : 'justify-start'
                   }`}
                 >
                   <div
                     className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      message.sender === 'agent'
+                      message.role === 'assistant'
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-900'
                     }`}
                   >
                     <div className='flex items-center justify-between mb-1'>
                       <span className='text-xs font-medium opacity-80'>
-                        {message.senderId?.name ||
-                          (message.sender === 'agent' ? 'Agent' : 'Client')}
+                        {message.role === 'assistant'
+                          ? 'Agent'
+                          : message?.clientId?.name}
                       </span>
                       <span className='text-xs opacity-70'>
-                        {formatChatTime(new Date(message.timestamp))}
+                        {formatChatTime(new Date(message.createdAt))}
                       </span>
                     </div>
-                    <p className='text-sm'>{message.message}</p>
+                    <pre className='text-sm whitespace-pre-wrap font-sans'>
+                      {message.content}
+                    </pre>
                   </div>
                 </div>
               ))}

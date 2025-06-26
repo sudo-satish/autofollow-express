@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const messageLogSchema = new mongoose.Schema({
-    message: { type: String, required: true },
+    message: { type: mongoose.Schema.Types.Mixed, required: true },
     createdAt: { type: Date, default: Date.now },
 });
 
