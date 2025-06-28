@@ -21,11 +21,16 @@ import FollowupView from './dashboard/followups/view.jsx';
 import Knowledge from './dashboard/knowledge/index.jsx';
 import KnowledgeForm from './dashboard/knowledge/form.jsx';
 import KnowledgeView from './dashboard/knowledge/view.jsx';
+import Playground from './playground/index.jsx';
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+  },
+  {
+    path: '/playground',
+    Component: Playground,
   },
   {
     path: '/admin',

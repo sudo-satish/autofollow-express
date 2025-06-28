@@ -55,11 +55,29 @@ function App() {
           <UserButton />
         </SignedIn>
 
-        {user?.publicMetadata?.role === 'super_admin' ? (
-          <Link to='/admin'>Admin Dashboard</Link>
-        ) : (
-          <Link to='/dashboard'>Dashboard</Link>
-        )}
+        <div className='flex space-x-4 mt-4'>
+          {user?.publicMetadata?.role === 'super_admin' ? (
+            <Link
+              to='/admin'
+              className='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700'
+            >
+              Admin Dashboard
+            </Link>
+          ) : (
+            <Link
+              to='/dashboard'
+              className='px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700'
+            >
+              Dashboard
+            </Link>
+          )}
+          <Link
+            to='/playground'
+            className='px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700'
+          >
+            AI Playground
+          </Link>
+        </div>
       </header>
     </div>
   );

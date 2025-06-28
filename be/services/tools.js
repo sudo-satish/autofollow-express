@@ -2,19 +2,23 @@ const { TavilySearch } = require("@langchain/tavily");
 const { tool } = require("@langchain/core/tools");
 const { z } = require("zod");
 const Followup = require("../models/followup");
+const moment = require("moment-timezone");
 
-
-const getWeather = tool((input) => {
-    if (["sf", "san francisco"].includes(input.location.toLowerCase())) {
-        return "It's 60 degrees and foggy.";
-    } else {
-        return "It's 90 degrees and sunny.";
-    }
+const getRealtimeDateTime = tool(async ({ timezone }) => {
+    return {
+        success: true,
+        message: 'Realtime date and time fetched successfully',
+        data: {
+            date: moment().tz(timezone).format('YYYY-MM-DD'),
+            time: moment().tz(timezone).format('HH:mm:ss'),
+            timezone: moment().tz(timezone).format('z'),
+        },
+    };
 }, {
-    name: "get_weather",
-    description: "Call to get the current weather.",
+    name: "get_realtime_date_time",
+    description: "Call to get the current date and time.",
     schema: z.object({
-        location: z.string().describe("Location to get the weather for."),
+        timezone: z.string().describe("Timezone to get the date and time for."),
     }),
 });
 
@@ -109,7 +113,7 @@ const tools = [
     giggerAttendanceConfirmation,
     humanAssistanceNeeded,
     multiply,
-    getWeather,
+    getRealtimeDateTime,
     new TavilySearch(
         {
             maxResults: 5,

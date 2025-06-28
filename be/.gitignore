@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 .env
 
-playground.js
+./playground.js
