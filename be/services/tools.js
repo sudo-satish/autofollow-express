@@ -1,4 +1,4 @@
-const { TavilySearch } = require("@langchain/tavily");
+
 const { tool } = require("@langchain/core/tools");
 const { z } = require("zod");
 const Followup = require("../models/followup");
@@ -113,13 +113,7 @@ const tools = [
     giggerAttendanceConfirmation,
     humanAssistanceNeeded,
     multiply,
-    getRealtimeDateTime,
-    new TavilySearch(
-        {
-            maxResults: 5,
-            topic: 'general',
-        }
-    ),
+    getRealtimeDateTime
 ];
 
 

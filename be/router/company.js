@@ -115,6 +115,7 @@ router.post('/:companyId/users', async (req, res) => {
             data: userResponse
         }));
     } catch (error) {
+        console.log(error);
         res.status(500).json({
             success: false,
             message: 'Failed to create user',
@@ -185,11 +186,55 @@ router.get('/:companyId/clients', async (req, res) => {
     }
 });
 
+// Get a single client by ID
+router.get('/:companyId/clients/:clientId', async (req, res) => {
+    try {
+        const { companyId, clientId } = req.params;
+
+        // Verify company exists
+        const company = await Company.findById(companyId);
+        if (!company) {
+            return res.status(404).json({
+                success: false,
+                message: 'Company not found'
+            });
+        }
+
+        // Find the client
+        const client = await Client.findById(clientId);
+        if (!client) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        // Verify the client belongs to the company
+        if (client.companyId.toString() !== companyId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Client does not belong to this company'
+            });
+        }
+
+        res.status(200).json(successResponse({
+            message: 'Client fetched successfully',
+            data: client
+        }));
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch client',
+            error: error.message
+        });
+    }
+});
+
 // Create a new client for a company
 router.post('/:companyId/clients', async (req, res) => {
     try {
         const { companyId } = req.params;
-        const { name, countryCode, phone } = req.body;
+        const { name, countryCode, phone, status } = req.body;
 
         // Validate required fields
         if (!name || !countryCode || !phone) {
@@ -208,18 +253,16 @@ router.post('/:companyId/clients', async (req, res) => {
             });
         }
 
-        // For now, return mock data - you'll need to create a Client model
-        const client = {
-            id: Date.now(),
+        // Create the client with proper data structure
+        const clientData = {
             name,
             countryCode,
             phone,
             companyId,
-            status: 'active',
-            createdAt: new Date().toISOString()
+            status: status || 'active'
         };
 
-        await Client.create(client);
+        const client = await Client.create(clientData);
 
         res.status(201).json(successResponse({
             message: 'Client created successfully',
@@ -257,20 +300,37 @@ router.put('/:companyId/clients/:clientId', async (req, res) => {
             });
         }
 
-        // For now, return mock data - you'll need to create a Client model
-        const client = {
-            id: clientId,
-            name,
-            countryCode,
-            phone,
-            companyId,
-            status: status || 'active',
-            updatedAt: new Date().toISOString()
-        };
+        // Find and update the client
+        const updatedClient = await Client.findByIdAndUpdate(
+            clientId,
+            {
+                name,
+                countryCode,
+                phone,
+                status: status || 'active',
+                updatedAt: new Date()
+            },
+            { new: true }
+        );
+
+        if (!updatedClient) {
+            return res.status(404).json({
+                success: false,
+                message: 'Client not found'
+            });
+        }
+
+        // Verify the client belongs to the company
+        if (updatedClient.companyId.toString() !== companyId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Client does not belong to this company'
+            });
+        }
 
         res.status(200).json(successResponse({
             message: 'Client updated successfully',
-            data: client
+            data: updatedClient
         }));
     } catch (error) {
         res.status(500).json({

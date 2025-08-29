@@ -288,3 +288,23 @@ For support and questions:
 ---
 
 **Auto Follow AI** - Automating client engagement with AI-powered WhatsApp conversations 🤖📱
+
+Run podman DEV
+
+```
+podman compose --profile dev up -d
+```
+
+```
+podman compose --profile dev down
+```
+
+See latest logs
+
+```
+podman compose --profile dev logs -f be-dev fe-dev | cat
+```
+
+```
+podman compose --env-file .env --profile dev stop && podman compose --env-file .env --profile dev up -d be-dev wwebjs-bot-dev
+```

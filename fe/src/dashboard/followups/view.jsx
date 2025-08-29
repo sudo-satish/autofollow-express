@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import useCompany from '../../hooks/useCompany';
-import { API_URL } from '../../config';
+import { API_URL, SOCKET_URL } from '../../config';
 import moment from 'moment';
 import { io } from 'socket.io-client';
 
@@ -62,7 +62,7 @@ const FollowupView = () => {
 
   // WebSocket connection for real-time messages
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_URL);
+    const socket = io(SOCKET_URL);
 
     socket.on('connect', () => {
       console.log('Connected to WebSocket server');

@@ -169,7 +169,7 @@ export default function Clients() {
   ];
 
   // Use mock data for now until API is ready
-  const displayClients = clients.length > 0 ? clients : mockClients;
+  const displayClients = clients.length > 0 ? clients : [];
 
   const filteredClients = displayClients.filter((client) => {
     const matchesSearch =
@@ -398,13 +398,13 @@ export default function Clients() {
                   <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium'>
                     <div className='flex items-center justify-end space-x-2'>
                       <Link
-                        to={`/dashboard/clients/${client.id}`}
+                        to={`/dashboard/clients/${client._id}`}
                         className='text-blue-600 hover:text-blue-900 p-1'
                       >
                         <Eye size={16} />
                       </Link>
                       <Link
-                        to={`/dashboard/clients/${client.id}/edit`}
+                        to={`/dashboard/clients/${client._id}/edit`}
                         className='text-green-600 hover:text-green-900 p-1'
                       >
                         <Edit size={16} />

@@ -65,8 +65,9 @@ const bindEvents = (client, clientId) => {
         }
     });
 
-    client.on('remote_session_saved', () => {
+    client.on('remote_session_saved', async () => {
         console.log('Remote session saved');
+        await WhatsappClient.updateOne({ clientId: clientId }, { $set: { sessionSaved: true } });
     });
 };
 
@@ -169,7 +170,7 @@ subscribe('whatsapp.send-message', async (data) => {
 });
 
 const initClients = async () => {
-    const clients = await WhatsappClient.find({});
+    const clients = await WhatsappClient.find({ sessionSaved: true });
 
     await Promise.all(clients.map(async client => {
         await createNewClient(client.clientId);
@@ -188,7 +189,21 @@ module.exports = {
                 store: store,
                 backupSyncIntervalMs: 300000,
                 rmMaxRetries: 10
-            })
+            }),
+            puppeteer: {
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor'
+                ],
+                headless: true
+            }
         });
 
         bindEvents(client);

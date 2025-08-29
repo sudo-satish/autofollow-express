@@ -1,0 +1,10 @@
+{
+  "watch": ["*.js", "router/", "models/", "services/", "utils/", "database/"],
+  "ext": "js,json",
+  "ignore": ["node_modules/", "*.test.js"],
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "legacyWatch": true,
+  "delay": 1000
+}

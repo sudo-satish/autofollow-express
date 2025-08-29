@@ -26,6 +26,7 @@ import { SignedIn, UserButton } from '@clerk/clerk-react';
 import { io } from 'socket.io-client';
 import useCompany from '../hooks/useCompany';
 import QRCode from 'react-qr-code';
+import { SOCKET_URL } from '../config';
 
 // const socket = io(import.meta.env.VITE_API_URL);
 // socket.on('connect', () => {
@@ -47,12 +48,12 @@ export default function Dashboard() {
   const { company, setCompany, refetchCompany } = useCompany();
 
   const socket = useMemo(() => {
-    return io(import.meta.env.VITE_API_URL);
+    return io(SOCKET_URL);
   }, []);
 
   // Socket event listeners for WhatsApp
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_URL);
+    const socket = io(SOCKET_URL);
     socket.on('connect', () => {
       console.log(`Connected to server ${socket.id}`);
     });

@@ -14,15 +14,19 @@ const port = process.env.PORT || 3000
 
 const io = new Server(server, {
     cors: {
-        origin: '*',
+        origin: ['http://localhost:5173', 'http://localhost:3000', 'http://fe-dev:5173', 'http://fe:80'],
         methods: ['GET', 'POST'],
+        credentials: true
     },
     transports: ['websocket', 'polling'],
     allowEIO3: true,
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://fe-dev:5173', 'http://fe:80'],
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(clerkMiddleware());

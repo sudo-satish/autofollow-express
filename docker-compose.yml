@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: autofollow-redis
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: autofollow-mongo
+    ports:
+      - '${MONGO_PORT:-27017}:27017'
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  be:
+    build:
+      context: ./be
+    container_name: autofollow-be
+    environment:
+      - PORT=${BE_PORT:-3000}
+      - MONGODB_URI=mongodb://mongo:27017/${MONGO_DB:-autofollow}
+      - REDIS_URL=redis://redis:6379
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
+      - NODE_ENV=production
+    ports:
+      - '${BE_PORT:-3000}:3000'
+    depends_on:
+      - mongo
+      - redis
+    profiles: ['prod']
+    restart: unless-stopped
+
+  fe:
+    build:
+      context: ./fe
+      args:
+        - VITE_API_URL=${API_URL:-http://localhost:3000/api}
+        - VITE_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
+    container_name: autofollow-fe
+    ports:
+      - '${FE_PORT:-5173}:80'
+    depends_on:
+      - be
+    profiles: ['prod']
+    restart: unless-stopped
+
+  wwebjs-bot:
+    build:
+      context: ./wwebjs-bot
+    container_name: autofollow-bot
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/${MONGO_DB:-autofollow}
+      - REDIS_URL=redis://redis:6379
+      - PUPPETEER_EXECUTABLE_PATH=${PUPPETEER_EXECUTABLE_PATH:-/usr/bin/chromium}
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
+
+  be-dev:
+    image: node:20-alpine
+    container_name: autofollow-be-dev
+    working_dir: /app
+    command: sh -c "npm ci && ./node_modules/.bin/nodemon --legacy-watch index.js"
+    environment:
+      - NODE_ENV=development
+      - PORT=${BE_PORT:-3000}
+      - MONGODB_URI=mongodb://mongo:27017/${MONGO_DB:-autofollow}
+      - REDIS_URL=redis://redis:6379
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./be:/app
+      - be_node_modules:/app/node_modules
+    ports:
+      - '${BE_PORT:-3000}:3000'
+    depends_on:
+      - mongo
+      - redis
+    profiles: ['dev']
+
+  fe-dev:
+    image: node:20-alpine
+    container_name: autofollow-fe-dev
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=${API_URL:-http://localhost:3000/api}
+      - VITE_SOCKET_URL=${SOCKET_URL:-http://localhost:3000}
+      - VITE_CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./fe:/app
+      - fe_node_modules:/app/node_modules
+    ports:
+      - '${FE_PORT:-5173}:5173'
+    depends_on:
+      - be-dev
+    profiles: ['dev']
+
+  wwebjs-bot-dev:
+    image: node:20-bullseye
+    container_name: autofollow-bot-dev
+    working_dir: /app
+    command: sh -c "npm ci && npm run dev"
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongo:27017/${MONGO_DB:-autofollow}
+      - REDIS_URL=redis://redis:6379
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    volumes:
+      - ./wwebjs-bot:/app
+      - bot_node_modules:/app/node_modules
+    depends_on:
+      - mongo
+      - redis
+    profiles: ['dev']
+
+volumes:
+  redis_data:
+  mongo_data:
+  be_node_modules:
+  fe_node_modules:
+  bot_node_modules:

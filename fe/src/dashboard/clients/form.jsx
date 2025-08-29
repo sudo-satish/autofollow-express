@@ -23,6 +23,7 @@ export default function ClientForm() {
     countryCode: '+91',
     phone: '',
     companyId: '',
+    status: 'active',
   });
 
   const [errors, setErrors] = useState({});
@@ -71,18 +72,51 @@ export default function ClientForm() {
 
   // Load client data if editing
   useEffect(() => {
-    if (isEditing && company) {
-      // Mock client data - replace with actual API call
-      const mockClient = {
-        id: 1,
-        name: 'John Smith',
-        countryCode: '+91',
-        phone: '9876543210',
-        companyId: company._id,
-      };
-      setFormData(mockClient);
-    }
-  }, [isEditing, company]);
+    const fetchClient = async () => {
+      if (isEditing && company && id) {
+        try {
+          setIsLoading(true);
+          const token = await getToken();
+          const response = await fetch(
+            `${API_URL}/company/${company._id}/clients/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch client details');
+          }
+
+          const data = await response.json();
+          if (data.success) {
+            const client = data.data;
+            setFormData({
+              name: client.name,
+              countryCode: client.countryCode,
+              phone: client.phone,
+              companyId: client.companyId,
+              status: client.status,
+            });
+          } else {
+            setErrors({
+              submit: data.message || 'Failed to fetch client details',
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching client:', err);
+          setErrors({ submit: err.message });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchClient();
+  }, [isEditing, company, id, getToken]);
 
   const countryCodes = [
     { code: '+91', country: 'India' },
@@ -282,6 +316,22 @@ export default function ClientForm() {
                 <p className='mt-1 text-sm text-red-600'>{errors.phone}</p>
               )}
             </div>
+          </div>
+
+          {/* Status Field */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 mb-2'>
+              Status *
+            </label>
+            <select
+              value={formData.status || 'active'}
+              onChange={(e) => handleChange('status', e.target.value)}
+              className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+            >
+              <option value='active'>Active</option>
+              <option value='inactive'>Inactive</option>
+              <option value='pending'>Pending</option>
+            </select>
           </div>
 
           {/* Company Field (Read-only) */}
