@@ -1,17 +1,18 @@
 # Auto Follow AI 🤖
 
-A comprehensive WhatsApp automation platform that enables businesses to connect their WhatsApp accounts and automatically engage with clients through AI-powered agents.
+A comprehensive WhatsApp automation platform that enables businesses to connect their WhatsApp accounts and automatically engage with clients through AI-powered agents built with LangGraph.
 
 ## 🚀 Features
 
 ### Core Functionality
 
 - **WhatsApp Integration**: Connect your WhatsApp account via QR code scanning
-- **AI-Powered Agents**: Create and configure custom AI agents with specific prompts and behaviors
+- **AI-Powered Agents**: Create and configure custom AI agents with LangGraph for intelligent automation
 - **Automated Follow-ups**: Schedule and automate follow-up messages to clients
 - **Client Management**: Organize and manage your client database
 - **Real-time Messaging**: Live chat functionality with message logging
 - **Multi-company Support**: Support for multiple companies with role-based access
+- **Knowledge Management**: RAG (Retrieval-Augmented Generation) system for intelligent responses
 
 ### Admin Features
 
@@ -29,94 +30,120 @@ A comprehensive WhatsApp automation platform that enables businesses to connect 
 
 ## 🛠️ Tech Stack
 
-### Backend
+### Backend Technologies
 
-- **Node.js** with **Express.js** - Server framework
-- **MongoDB** with **Mongoose** - Database and ODM
-- **Redis** - Caching and real-time messaging
-- **Socket.IO** - Real-time communication
-- **Clerk** - Authentication and user management
-- **WhatsApp API** - WhatsApp integration
+- **Node.js** - JavaScript runtime environment
+- **Express.js** - Web application framework for Node.js
+- **LangGraph** - Framework for building stateful, multi-actor applications with LLMs
+- **Anthropic Claude** - Large Language Model (LLM) for AI-powered features
+  - _Planned Migration_: AWS Bedrock integration
+- **MongoDB** - NoSQL document database for data persistence
+- **Redis** - In-memory data structure store (Event Bridge for real-time communication)
+- **Clerk** - Authentication and user management service
+  - _Planned Migration_: Custom authentication system
 
-### Frontend
+### Frontend Technologies
 
-- **React 19** - UI framework
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Styling framework
-- **React Router** - Client-side routing
-- **Socket.IO Client** - Real-time communication
-- **Lucide React** - Icon library
+- **React** - JavaScript library for building user interfaces
+- **Vite** - Build tool and development server
+- **Tailwind CSS** - Utility-first CSS framework for rapid UI development
+
+### External Services
+
+- **Tavily** - AI-powered web search API for research and information gathering
+- **WhatsApp Web.js** - WhatsApp Business API integration
+  - _Planned Migration_: ChatDaddy integration
+
+### DevOps & Infrastructure
+
+- **Docker** - Containerization platform
+  - _Planned_: Kubernetes (K8s) orchestration
+- **Nodemon** - Development server with auto-restart
+- **ESLint** - Code linting and formatting
 
 ## 📋 Prerequisites
 
 Before running this project, make sure you have:
 
-- **Node.js** (v18 or higher)
-- **MongoDB** (local or cloud instance)
-- **Redis** (local or cloud instance)
-- **Clerk Account** (for authentication)
-- **WhatsApp Business API** access
+- **Git** - for cloning the repository
+- **Node.js** (v18 or higher) - for running the application
+- **Docker & Docker Compose** - for containerized services
+- **Clerk Account** - for authentication (sign up at [clerk.com](https://clerk.com))
 
-## 🚀 Installation & Setup
+## 🚀 Quick Start
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone <your-repository-url>
 cd autofollow-express
 ```
 
-### 2. Backend Setup
+### 2. Install Dependencies
 
 ```bash
+# Backend dependencies
 cd be
 npm install
-```
 
-Create a `.env` file in the `be` directory:
-
-```env
-PORT=3000
-MONGODB_URI=your_mongodb_connection_string
-REDIS_URL=your_redis_connection_string
-CLERK_SECRET_KEY=your_clerk_secret_key
-CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-```
-
-### 3. Frontend Setup
-
-```bash
+# Frontend dependencies
 cd ../fe
 npm install
+
+# WhatsApp bot dependencies
+cd ../wwebjs-bot
+npm install
+
+# Return to root directory
+cd ..
 ```
 
-Create a `.env` file in the `fe` directory:
+### 3. Environment Setup
+
+Create a `.env` file in the root directory:
 
 ```env
-VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-VITE_API_URL=http://localhost:3000/api
+# Database Configuration
+MONGO_DB=autofollow
+MONGO_PORT=27017
+REDIS_PORT=6379
+
+# Backend Configuration
+BE_PORT=3000
+CLERK_SECRET_KEY=your_clerk_secret_key_here
+CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key_here
+TAVILY_API_KEY=your_tavily_api_key_here
+
+# Frontend Configuration
+FE_PORT=5173
+API_URL=http://localhost:3000/api
+SOCKET_URL=http://localhost:3000
+
+# Puppeteer Configuration
+PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ```
 
-### 4. Start the Development Servers
+### 4. Start Services
 
-**Backend:**
+```bash
+# Start all services in development mode
+docker-compose --profile dev up -d
+
+# Verify services are running
+docker-compose --profile dev ps
+```
+
+### 5. Seed the Database
 
 ```bash
 cd be
-npm run dev
+npm run seed
 ```
 
-**Frontend:**
+### 6. Access the Application
 
-```bash
-cd fe
-npm run dev
-```
-
-The application will be available at:
-
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:3000/api`
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:3000/api
 
 ## 📱 Usage Guide
 
@@ -169,28 +196,46 @@ The application will be available at:
 
 ```
 autofollow-express/
-├── be/                          # Backend
+├── be/                          # Backend (Node.js + Express)
 │   ├── database/
 │   │   └── db.js               # MongoDB connection
-│   │   ├── models/                 # Database models
-│   │   │   ├── agent.js           # AI agent model
-│   │   │   ├── client.js          # Client model
-│   │   │   ├── company.js         # Company model
-│   │   │   ├── followup.js        # Follow-up model
-│   │   │   └── messageLog.js      # Message logging
-│   │   ├── router/                # API routes
-│   │   ├── services/              # External services
-│   │   ├── utils/                 # Utility functions
-│   │   └── index.js              # Main server file
-│   └── redis.js              # Redis configuration
-├── fe/                        # Frontend
+│   ├── models/                  # Database models
+│   │   ├── agent.js            # AI agent model
+│   │   ├── client.js           # Client model
+│   │   ├── company.js          # Company model
+│   │   ├── followup.js         # Follow-up model
+│   │   └── messageLog.js       # Message logging
+│   ├── router/                  # API routes
+│   ├── services/                # External services
+│   ├── utils/                   # Utility functions
+│   └── index.js                # Main server file
+├── fe/                          # Frontend (React + Vite)
 │   ├── src/
-│   │   ├── admin/            # Admin dashboard components
-│   │   ├── dashboard/        # User dashboard components
-│   │   ├── hooks/           # Custom React hooks
-│   │   └── config/          # Configuration files
+│   │   ├── admin/              # Admin dashboard components
+│   │   ├── dashboard/          # User dashboard components
+│   │   ├── hooks/              # Custom React hooks
+│   │   └── config/             # Configuration files
 │   └── package.json
+├── wwebjs-bot/                  # WhatsApp bot service
+├── docker-compose.yml           # Multi-service orchestration
 └── README.md
+```
+
+## 🔧 Development Commands
+
+```bash
+# Backend
+cd be
+npm run dev          # Start development server
+
+# Frontend
+cd fe
+npm run dev          # Start Vite dev server
+
+# Docker
+docker-compose --profile dev up -d    # Start all services
+docker-compose --profile dev down     # Stop all services
+docker-compose --profile dev logs -f  # View logs
 ```
 
 ## 🔧 API Endpoints
@@ -240,19 +285,24 @@ autofollow-express/
 - **API Security**: Protected routes with JWT tokens
 - **Data Validation**: Input validation on all endpoints
 
-## 🚀 Deployment
+## 🚀 Migration Roadmap
 
-### Backend Deployment
+1. **Phase 1**: Replace WhatsApp Web.js with ChatDaddy
+2. **Phase 2**: Migrate from Anthropic to AWS Bedrock
+3. **Phase 3**: Implement custom authentication system
+4. **Phase 4**: Deploy to Kubernetes cluster
 
-1. Set up environment variables in your hosting platform
-2. Install dependencies: `npm install`
-3. Start the server: `npm start`
+## 🔮 Future Roadmap
 
-### Frontend Deployment
-
-1. Build the project: `npm run build`
-2. Deploy the `dist` folder to your hosting platform
-3. Configure environment variables
+- [ ] Multi-language support
+- [ ] Advanced analytics dashboard
+- [ ] Integration with CRM systems
+- [ ] Mobile app development
+- [ ] Advanced AI agent training with LangGraph
+- [ ] Bulk messaging capabilities
+- [ ] Message templates
+- [ ] Performance optimization
+- [ ] Kubernetes deployment
 
 ## 🤝 Contributing
 
@@ -274,37 +324,22 @@ For support and questions:
 - Contact the development team
 - Check the documentation
 
-## 🔮 Roadmap
-
-- [ ] Multi-language support
-- [ ] Advanced analytics dashboard
-- [ ] Integration with CRM systems
-- [ ] Mobile app development
-- [ ] Advanced AI agent training
-- [ ] Bulk messaging capabilities
-- [ ] Message templates
-- [ ] Performance optimization
-
 ---
 
-**Auto Follow AI** - Automating client engagement with AI-powered WhatsApp conversations 🤖📱
+**Auto Follow AI** - Automating client engagement with AI-powered WhatsApp conversations using LangGraph 🤖📱
 
-Run podman DEV
+## 🐳 Docker Commands (Podman Compatible)
 
-```
+```bash
+# Start development environment
 podman compose --profile dev up -d
-```
 
-```
+# Stop development environment
 podman compose --profile dev down
-```
 
-See latest logs
-
-```
+# View logs
 podman compose --profile dev logs -f be-dev fe-dev | cat
-```
 
-```
-podman compose --env-file .env --profile dev stop && podman compose --env-file .env --profile dev up -d be-dev wwebjs-bot-dev
+# Restart services
+podman compose --env-file .env --profile dev stop && podman compose --env-file .env --profile dev up -d
 ```
